@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Weather App</h1>
+
+    <form id="search-form" class="search">
+      <input id="location-input" type="text" placeholder="Enter a city, e.g. Copenhagen" autocomplete="off" required />
+      <button type="submit">Search</button>
+      <button type="button" id="refresh-btn" title="Refresh weather">&#8635; Refresh</button>
+      <button type="button" id="unit-btn" title="Switch units">&deg;C</button>
+    </form>
+
+    <details id="key-box" class="key-box">
+      <summary>API key</summary>
+      <p>
+        Get a free key from
+        <a href="https://www.visualcrossing.com/weather-api" target="_blank" rel="noopener">Visual Crossing</a>.
+        It is stored only in your browser (localStorage).
+      </p>
+      <div class="key-row">
+        <input id="api-key-input" type="password" placeholder="Paste your API key" />
+        <button type="button" id="save-key-btn">Save</button>
+      </div>
+    </details>
+
+    <p id="status" class="status" role="status"></p>
+
+    <section id="current" class="card hidden" aria-live="polite">
+      <h2 id="place"></h2>
+      <div class="current-main">
+        <div id="icon" class="icon"></div>
+        <div id="temp" class="temp"></div>
+      </div>
+      <p id="conditions" class="conditions"></p>
+      <ul class="details">
+        <li><span>Wind</span><strong id="wind"></strong></li>
+        <li><span>Chance of rain</span><strong id="rain"></strong></li>
+        <li><span>Updated</span><strong id="updated"></strong></li>
+      </ul>
+    </section>
+
+    <section id="hourly-section" class="hidden">
+      <h3>Previous and next 24 hours</h3>
+      <div id="hourly" class="hourly"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
