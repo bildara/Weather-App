@@ -1,42 +1,38 @@
-Atmos Weather
+# Atmos Weather App
 
-A modern and intuitive weather application designed to display weather conditions through a clean and elegant interface.
+A modern weather application built with HTML, CSS, and JavaScript, featuring weather information and a clean, responsive user interface.
 
-- Live Demo
+## 🌦️ Live Demo
 
-Project URL: https://bildara.github.io/Weather-App/
-
-- Features
-
-Current weather conditions
-
-Weather forecast
-
-Dynamic interface based on weather conditions
-
-Clean and responsive user interface
-
-Simple and intuitive navigation
-
-- Technologies Used
-
-HTML5
-
-CSS3
-
-JavaScript
-
-Visual Crossing Weather API
-
-GitHub Pages
-
-- Getting Started
-
-To use the application, visit the live demo:
 https://bildara.github.io/Weather-App/
-To run the project locally, download or clone the repository and open the project using a local development server.
+
+## 📌 Project Challenge
+
+This project was created as part of the roadmap.sh Weather App project challenge.
+
 https://roadmap.sh/projects/weather-app
 
-- Author
+## ✨ Features
 
-GitHub: bildara
+- Display weather information
+- Dynamic weather-based interface
+- Clean and responsive design
+- Simple and intuitive navigation
+
+## 🛠️ Technologies Used
+
+- HTML5
+- CSS3
+- JavaScript
+- Visual Crossing Weather API
+- GitHub Pages
+
+## 🚀 Getting Started
+
+Visit the live application:
+
+https://bildara.github.io/Weather-App/
+
+## 👩‍💻 Author
+
+GitHub: https://github.com/bildara
