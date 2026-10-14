@@ -35,6 +35,7 @@ GitHub Pages
 To use the application, visit the live demo:
 https://bildara.github.io/Weather-App/
 To run the project locally, download or clone the repository and open the project using a local development server.
+https://roadmap.sh/projects/weather-app
 
 - Author
 
