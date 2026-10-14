@@ -1,57 +1,65 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather App</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#454b4b">
+  <title>Atmos Weather</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
 </head>
-<body>
-  <main class="app">
-    <h1>Weather App</h1>
+<body class="weather-cloudy">
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Atmos Weather home"><span class="brand-mark">A</span><span>atmos<span class="brand-light"> weather</span></span></a>
+      <div class="top-actions">
+        <button id="unit-button" class="button button-quiet" type="button" aria-label="Switch temperature units">°C</button>
+        <button id="refresh-button" class="button button-quiet" type="button"><span aria-hidden="true">↻</span> Refresh</button>
+      </div>
+    </header>
 
-    <form id="search-form" class="search">
-      <input id="location-input" type="text" placeholder="Enter a city, e.g. Copenhagen" autocomplete="off" required />
-      <button type="submit">Search</button>
-      <button type="button" id="refresh-btn" title="Refresh weather">&#8635; Refresh</button>
-      <button type="button" id="unit-btn" title="Switch units">&deg;C</button>
-    </form>
+    <section class="search-panel" aria-label="Find weather">
+      <div class="section-label">WEATHER FORECAST</div>
+      <form id="search-form" class="search-form">
+        <label class="sr-only" for="location-input">Enter a city or location</label>
+        <span class="search-symbol" aria-hidden="true">⌕</span>
+        <input id="location-input" name="location" type="search" placeholder="Search a city or location…" autocomplete="off" required>
+        <button class="button button-primary" type="submit">Search <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="search-foot"><span>Current conditions and a rolling 48-hour outlook</span><button id="use-location-button" class="text-button" type="button">◎ Use my location</button></div>
+    </section>
 
-    <details id="key-box" class="key-box">
-      <summary>API key</summary>
-      <p>
-        Get a free key from
-        <a href="https://www.visualcrossing.com/weather-api" target="_blank" rel="noopener">Visual Crossing</a>.
-        It is stored only in your browser (localStorage).
-      </p>
-      <div class="key-row">
-        <input id="api-key-input" type="password" placeholder="Paste your API key" />
-        <button type="button" id="save-key-btn">Save</button>
+    <details id="api-settings" class="api-settings">
+      <summary><span class="settings-icon" aria-hidden="true">⚙</span> API key settings <span class="summary-chevron" aria-hidden="true">⌄</span></summary>
+      <div class="api-content">
+        <p>Enter your <a href="https://www.visualcrossing.com/weather-api" target="_blank" rel="noopener noreferrer">Visual Crossing API key</a>. It is saved in this browser only.</p>
+        <form id="api-form" class="api-form">
+          <label class="sr-only" for="api-key-input">Visual Crossing API key</label>
+          <input id="api-key-input" type="password" placeholder="Paste API key" autocomplete="off">
+          <button class="button button-primary" type="submit">Save key</button>
+        </form>
       </div>
     </details>
 
-    <p id="status" class="status" role="status"></p>
+    <p id="status" class="status" role="status" aria-live="polite">Add your API key, then search for a location.</p>
 
-    <section id="current" class="card hidden" aria-live="polite">
-      <h2 id="place"></h2>
-      <div class="current-main">
-        <div id="icon" class="icon"></div>
-        <div id="temp" class="temp"></div>
+    <section id="current-weather" class="current-card panel hidden" aria-live="polite">
+      <div class="current-heading"><div><div class="section-label">CURRENT WEATHER</div><h1 id="place-name">—</h1><p id="local-date" class="local-date"></p></div><div id="weather-icon" class="weather-icon" aria-hidden="true">☁</div></div>
+      <div class="current-reading"><div id="temperature" class="temperature">—°</div><div class="current-summary"><h2 id="conditions">Loading…</h2><p>Feels like <strong id="feels-like">—</strong></p></div></div>
+      <div class="weather-metrics">
+        <article class="metric"><span class="metric-icon" aria-hidden="true">↗</span><span class="metric-label">WIND SPEED</span><strong id="wind-speed">—</strong></article>
+        <article class="metric"><span class="metric-icon" aria-hidden="true">⌁</span><span class="metric-label">CHANCE OF RAIN</span><strong id="rain-chance">—</strong></article>
+        <article class="metric"><span class="metric-icon" aria-hidden="true">◷</span><span class="metric-label">LAST UPDATED</span><strong id="updated-at">—</strong></article>
       </div>
-      <p id="conditions" class="conditions"></p>
-      <ul class="details">
-        <li><span>Wind</span><strong id="wind"></strong></li>
-        <li><span>Chance of rain</span><strong id="rain"></strong></li>
-        <li><span>Updated</span><strong id="updated"></strong></li>
-      </ul>
     </section>
 
-    <section id="hourly-section" class="hidden">
-      <h3>Previous and next 24 hours</h3>
-      <div id="hourly" class="hourly"></div>
+    <section id="hourly-section" class="forecast-section hidden" aria-labelledby="hourly-title">
+      <div class="forecast-heading"><div><div class="section-label">HOUR BY HOUR</div><h2 id="hourly-title">Previous 24 hours · Next 24 hours</h2></div><div class="scroll-hint">Scroll to explore <span aria-hidden="true">→</span></div></div>
+      <div id="hourly-forecast" class="hourly-forecast" tabindex="0" aria-label="Hourly weather forecast"></div>
+      <div class="timeline-legend"><span><i class="legend-dot past-dot"></i> Previous 24 hours</span><span><i class="legend-dot now-dot"></i> Now</span><span><i class="legend-dot future-dot"></i> Next 24 hours</span></div>
     </section>
+
+    <footer class="footer"><span>Atmos Weather</span><span>Weather data by <a href="https://www.visualcrossing.com/weather-api" target="_blank" rel="noopener noreferrer">Visual Crossing</a></span></footer>
   </main>
-
-  <script src="script.js"></script>
 </body>
 </html>

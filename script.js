@@ -1,232 +1,311 @@
-const BASE_URL =
-  "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline";
+"use strict";
 
-const els = {
-  form: document.getElementById("search-form"),
-  input: document.getElementById("location-input"),
-  refresh: document.getElementById("refresh-btn"),
-  unitBtn: document.getElementById("unit-btn"),
-  keyBox: document.getElementById("key-box"),
-  keyInput: document.getElementById("api-key-input"),
-  saveKey: document.getElementById("save-key-btn"),
-  status: document.getElementById("status"),
-  current: document.getElementById("current"),
-  place: document.getElementById("place"),
-  icon: document.getElementById("icon"),
-  temp: document.getElementById("temp"),
-  conditions: document.getElementById("conditions"),
-  wind: document.getElementById("wind"),
-  rain: document.getElementById("rain"),
-  updated: document.getElementById("updated"),
-  hourlySection: document.getElementById("hourly-section"),
-  hourly: document.getElementById("hourly"),
+const API_BASE_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline";
+const STORAGE_KEYS = { apiKey: "vc_api_key", unit: "atmos_unit", lastLocation: "atmos_last_location" };
+const HOURS_IN_SECONDS = 60 * 60;
+
+const elements = {
+  body: document.body,
+  searchForm: document.querySelector("#search-form"),
+  locationInput: document.querySelector("#location-input"),
+  refreshButton: document.querySelector("#refresh-button"),
+  unitButton: document.querySelector("#unit-button"),
+  useLocationButton: document.querySelector("#use-location-button"),
+  apiSettings: document.querySelector("#api-settings"),
+  apiForm: document.querySelector("#api-form"),
+  apiKeyInput: document.querySelector("#api-key-input"),
+  status: document.querySelector("#status"),
+  currentWeather: document.querySelector("#current-weather"),
+  placeName: document.querySelector("#place-name"),
+  localDate: document.querySelector("#local-date"),
+  weatherIcon: document.querySelector("#weather-icon"),
+  temperature: document.querySelector("#temperature"),
+  conditions: document.querySelector("#conditions"),
+  feelsLike: document.querySelector("#feels-like"),
+  windSpeed: document.querySelector("#wind-speed"),
+  rainChance: document.querySelector("#rain-chance"),
+  updatedAt: document.querySelector("#updated-at"),
+  hourlySection: document.querySelector("#hourly-section"),
+  hourlyForecast: document.querySelector("#hourly-forecast"),
 };
 
 const state = {
   location: null,
-  unit: safeGet("unit") || "metric", // "metric" | "us"
+  unit: readStorage(STORAGE_KEYS.unit) || "metric",
+  requestId: 0,
 };
 
-const ICONS = {
-  "clear-day": "☀️",
-  "clear-night": "🌙",
-  "partly-cloudy-day": "⛅",
-  "partly-cloudy-night": "☁️",
-  cloudy: "☁️",
-  rain: "🌧️",
-  showers: "🌦️",
-  "showers-day": "🌦️",
-  "showers-night": "🌧️",
-  snow: "❄️",
-  "snow-showers-day": "🌨️",
-  "snow-showers-night": "🌨️",
-  fog: "🌫️",
-  wind: "💨",
-  thunder: "⛈️",
-  "thunder-rain": "⛈️",
-  "thunder-showers-day": "⛈️",
-  "thunder-showers-night": "⛈️",
-  hail: "🌨️",
+const WEATHER_ICONS = {
+  "clear-day": "☀️", "clear-night": "🌙", "partly-cloudy-day": "⛅",
+  "partly-cloudy-night": "☁️", cloudy: "☁️", rain: "🌧️", showers: "🌦️",
+  "showers-day": "🌦️", "showers-night": "🌧️", snow: "❄️",
+  "snow-showers-day": "🌨️", "snow-showers-night": "🌨️", fog: "🌫️",
+  wind: "💨", thunder: "⛈️", "thunder-rain": "⛈️",
+  "thunder-showers-day": "⛈️", "thunder-showers-night": "⛈️", hail: "🌨️",
 };
 
-const icon = (name) => ICONS[name] || "🌡️";
-
-function safeGet(key) {
+function readStorage(key) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
-function safeSet(key, value) {
-  try { localStorage.setItem(key, value); } catch { /* ignore */ }
+
+function writeStorage(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* Storage may be disabled. */ }
 }
 
-function setStatus(message, isError = false) {
-  els.status.textContent = message;
-  els.status.classList.toggle("error", isError);
+function getApiKey() {
+  return readStorage(STORAGE_KEYS.apiKey)?.trim() || "";
 }
 
-function updateUnitButton() {
-  els.unitBtn.textContent = state.unit === "metric" ? "°C" : "°F";
+function setStatus(message = "", isError = false) {
+  elements.status.textContent = message;
+  elements.status.classList.toggle("error", isError);
 }
 
-async function fetchWeather(location) {
-  const apiKey = safeGet("vc_api_key");
+function setLoading(isLoading) {
+  document.body.classList.toggle("loading", isLoading);
+  elements.refreshButton.disabled = isLoading;
+  elements.refreshButton.innerHTML = isLoading ? "Loading…" : '<span aria-hidden="true">↻</span> Refresh';
+}
+
+function formatTemperature(value) {
+  const unit = state.unit === "metric" ? "C" : "F";
+  return `${Math.round(value)}°${unit}`;
+}
+
+function formatWind(value) {
+  const unit = state.unit === "metric" ? "km/h" : "mph";
+  return `${Math.round(value)} ${unit}`;
+}
+
+function weatherIcon(iconName) {
+  return WEATHER_ICONS[iconName] || "🌡️";
+}
+
+function getWeatherTheme(iconName = "", conditions = "") {
+  const description = `${iconName} ${conditions}`.toLowerCase();
+  if (/snow|sleet|ice/.test(description)) return "snowy";
+  if (/thunder|storm/.test(description)) return "stormy";
+  if (/rain|shower|drizzle/.test(description)) return "rainy";
+  if (/clear-night|partly-cloudy-night/.test(description) || /night/.test(description)) return "night";
+  if (/clear-day|sunny/.test(description)) return "sunny";
+  return "cloudy";
+}
+
+function applyWeatherTheme(iconName, conditions) {
+  const themes = ["sunny", "cloudy", "rainy", "stormy", "snowy", "night"];
+  elements.body.classList.remove(...themes.map((theme) => `weather-${theme}`));
+  elements.body.classList.add(`weather-${getWeatherTheme(iconName, conditions)}`);
+}
+
+async function requestWeather(location) {
+  const apiKey = getApiKey();
   if (!apiKey) {
-    els.keyBox.open = true;
-    throw new Error("Please add your Visual Crossing API key first.");
+    elements.apiSettings.open = true;
+    throw new Error("Add your Visual Crossing API key in API key settings first.");
   }
 
-  const url =
-    `${BASE_URL}/${encodeURIComponent(location)}/yesterday/tomorrow` +
-    `?unitGroup=${state.unit}&include=hours,current&key=${apiKey}&contentType=json`;
+  const query = new URLSearchParams({
+    unitGroup: state.unit,
+    include: "hours,current",
+    key: apiKey,
+    contentType: "json",
+  });
+  const url = `${API_BASE_URL}/${encodeURIComponent(location)}/yesterday/tomorrow?${query}`;
+  const response = await fetch(url);
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    if (res.status === 400) throw new Error("Location not found. Try another name.");
-    if (res.status === 401) throw new Error("Invalid API key.");
-    if (res.status === 429) throw new Error("API limit reached. Try again later.");
-    throw new Error(`Request failed (${res.status}).`);
+  if (!response.ok) {
+    if (response.status === 400) throw new Error("Location not found. Try a different city or address.");
+    if (response.status === 401 || response.status === 403) throw new Error("The API key is invalid or does not have access.");
+    if (response.status === 429) throw new Error("The API request limit has been reached. Try again later.");
+    throw new Error(`Weather request failed (${response.status}). Please try again.`);
   }
-  return res.json();
+  return response.json();
 }
 
-// Collect hours from yesterday/today/tomorrow within [now - 24h, now + 24h]
-function getHourWindow(data) {
-  const nowSec = data.currentConditions?.datetimeEpoch ?? Math.floor(Date.now() / 1000);
-  const from = nowSec - 24 * 3600;
-  const to = nowSec + 24 * 3600;
+function getRollingHours(weatherData) {
+  const now = weatherData.currentConditions?.datetimeEpoch ?? Math.floor(Date.now() / 1000);
+  const start = now - 24 * HOURS_IN_SECONDS;
+  const end = now + 24 * HOURS_IN_SECONDS;
 
-  return data.days
-    .flatMap((d) => d.hours || [])
-    .filter((h) => h.datetimeEpoch >= from && h.datetimeEpoch <= to)
-    .map((h) => ({
-      ...h,
-      status:
-        Math.abs(h.datetimeEpoch - nowSec) < 1800
-          ? "now"
-          : h.datetimeEpoch < nowSec
-          ? "past"
-          : "future",
+  return (weatherData.days || [])
+    .flatMap((day) => day.hours || [])
+    .filter((hour) => hour.datetimeEpoch >= start && hour.datetimeEpoch <= end)
+    .sort((a, b) => a.datetimeEpoch - b.datetimeEpoch)
+    .map((hour) => ({
+      ...hour,
+      period: Math.abs(hour.datetimeEpoch - now) < 30 * 60 ? "now" : hour.datetimeEpoch < now ? "past" : "future",
     }));
 }
 
-function formatTemp(t) {
-  return `${Math.round(t)}°${state.unit === "metric" ? "C" : "F"}`;
-}
-function formatWind(w) {
-  return `${Math.round(w)} ${state.unit === "metric" ? "km/h" : "mph"}`;
+function makeHourlyCard(hour, index) {
+  const date = new Date(hour.datetimeEpoch * 1000);
+  const dayLabel = date.toLocaleDateString(undefined, { weekday: "short" });
+  const timeLabel = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const card = document.createElement("article");
+  card.className = `hour ${hour.period}`;
+  card.style.animationDelay = `${Math.min(index * 15, 400)}ms`;
+  card.setAttribute("aria-label", `${dayLabel} ${timeLabel}, ${formatTemperature(hour.temp)}, ${hour.conditions}`);
+
+  const time = document.createElement("div");
+  time.className = "h-time";
+  time.textContent = hour.period === "now" ? "NOW" : `${dayLabel} ${timeLabel}`;
+
+  const icon = document.createElement("div");
+  icon.className = "h-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = weatherIcon(hour.icon);
+
+  const temperature = document.createElement("div");
+  temperature.className = "h-temp";
+  temperature.textContent = formatTemperature(hour.temp);
+
+  const rain = document.createElement("div");
+  rain.className = "h-rain";
+  rain.textContent = `Rain ${Math.round(hour.precipprob ?? 0)}%`;
+
+  const wind = document.createElement("div");
+  wind.className = "h-wind";
+  wind.textContent = formatWind(hour.windspeed);
+
+  card.append(time, icon, temperature, rain, wind);
+  return card;
 }
 
-function restartAnimation(el) {
-  el.classList.remove("fade-in");
-  void el.offsetWidth; // reflow to retrigger
-  el.classList.add("fade-in");
+function renderHourlyForecast(weatherData) {
+  const hours = getRollingHours(weatherData);
+  const fragment = document.createDocumentFragment();
+  hours.forEach((hour, index) => fragment.append(makeHourlyCard(hour, index)));
+  elements.hourlyForecast.replaceChildren(fragment);
+  elements.hourlySection.classList.toggle("hidden", hours.length === 0);
+
+  const currentCard = elements.hourlyForecast.querySelector(".now");
+  if (currentCard) currentCard.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
 }
 
-function render(data) {
-  const cur = data.currentConditions;
-
-  els.place.textContent = data.resolvedAddress;
-  els.icon.textContent = icon(cur.icon);
-  els.temp.textContent = formatTemp(cur.temp);
-  els.conditions.textContent = cur.conditions;
-  els.wind.textContent = formatWind(cur.windspeed);
-  els.rain.textContent = `${Math.round(cur.precipprob ?? 0)}%`;
-  els.updated.textContent = new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
+function renderWeather(weatherData) {
+  const current = weatherData.currentConditions || {};
+  elements.placeName.textContent = weatherData.resolvedAddress || state.location;
+  elements.localDate.textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "long", month: "long", day: "numeric",
   });
+  elements.weatherIcon.textContent = weatherIcon(current.icon);
+  elements.temperature.textContent = formatTemperature(current.temp);
+  elements.conditions.textContent = current.conditions || "Conditions unavailable";
+  elements.feelsLike.textContent = formatTemperature(current.feelslike ?? current.temp);
+  elements.windSpeed.textContent = formatWind(current.windspeed ?? 0);
+  elements.rainChance.textContent = `${Math.round(current.precipprob ?? 0)}%`;
+  elements.updatedAt.textContent = new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
-  els.current.classList.remove("hidden");
-  restartAnimation(els.current);
-
-  const hours = getHourWindow(data);
-  els.hourly.innerHTML = "";
-  hours.forEach((h, i) => {
-    const date = new Date(h.datetimeEpoch * 1000);
-    const day = date.toLocaleDateString([], { weekday: "short" });
-    const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-    const card = document.createElement("div");
-    card.className = `hour ${h.status}`;
-    card.style.animationDelay = `${Math.min(i * 20, 600)}ms`;
-    card.innerHTML = `
-      <div class="h-time">${day} ${time}</div>
-      <div class="h-icon">${icon(h.icon)}</div>
-      <div class="h-temp">${formatTemp(h.temp)}</div>
-      <div class="h-rain">💧 ${Math.round(h.precipprob ?? 0)}%</div>
-      <div>${formatWind(h.windspeed)}</div>
-    `;
-    els.hourly.appendChild(card);
-  });
-
-  els.hourlySection.classList.remove("hidden");
-
-  const nowCard = els.hourly.querySelector(".now");
-  if (nowCard) nowCard.scrollIntoView({ inline: "center", block: "nearest" });
+  applyWeatherTheme(current.icon, current.conditions);
+  elements.currentWeather.classList.remove("hidden");
+  renderHourlyForecast(weatherData);
 }
 
-async function loadWeather(location) {
-  if (!location) return;
-  state.location = location;
-  document.body.classList.add("loading");
-  setStatus("Loading weather…");
+async function loadWeather(location = state.location) {
+  const cleanLocation = location?.trim();
+  if (!cleanLocation) {
+    setStatus("Enter a city or location to see the forecast.", true);
+    return;
+  }
+
+  state.location = cleanLocation;
+  state.requestId += 1;
+  const requestId = state.requestId;
+  elements.locationInput.value = cleanLocation;
+  setLoading(true);
+  setStatus(`Loading weather for ${cleanLocation}…`);
+
   try {
-    const data = await fetchWeather(location);
-    render(data);
+    const weatherData = await requestWeather(cleanLocation);
+    if (requestId !== state.requestId) return;
+    renderWeather(weatherData);
+    writeStorage(STORAGE_KEYS.lastLocation, cleanLocation);
     setStatus("");
-  } catch (err) {
-    setStatus(err.message || "Something went wrong.", true);
+  } catch (error) {
+    if (requestId === state.requestId) setStatus(error.message || "Unable to load weather. Please try again.", true);
   } finally {
-    document.body.classList.remove("loading");
+    if (requestId === state.requestId) setLoading(false);
   }
 }
 
-// Events
-els.form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  loadWeather(els.input.value.trim());
-});
-
-els.refresh.addEventListener("click", () => {
-  if (state.location) loadWeather(state.location);
-  else setStatus("Search for a location first.", true);
-});
-
-els.unitBtn.addEventListener("click", () => {
-  state.unit = state.unit === "metric" ? "us" : "metric";
-  safeSet("unit", state.unit);
-  updateUnitButton();
-  if (state.location) loadWeather(state.location);
-});
-
-els.saveKey.addEventListener("click", () => {
-  const key = els.keyInput.value.trim();
-  if (!key) return;
-  safeSet("vc_api_key", key);
-  els.keyInput.value = "";
-  els.keyBox.open = false;
-  setStatus("API key saved.");
-  if (state.location) loadWeather(state.location);
-  else useCurrentLocation();
-});
-
-// Stretch goal: default to the user's current location
 function useCurrentLocation() {
-  if (!safeGet("vc_api_key") || !navigator.geolocation) return;
-  setStatus("Detecting your location…");
+  if (!navigator.geolocation) {
+    setStatus("Location access is not supported by this browser. Search for a city instead.", true);
+    return;
+  }
+  if (!getApiKey()) {
+    elements.apiSettings.open = true;
+    setStatus("Add your Visual Crossing API key before using location.", true);
+    return;
+  }
+
+  setStatus("Finding your location…");
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { latitude, longitude } = pos.coords;
-      loadWeather(`${latitude.toFixed(4)},${longitude.toFixed(4)}`);
-    },
-    () => setStatus("Enter a location to get started.")
+    ({ coords }) => loadWeather(`${coords.latitude.toFixed(4)},${coords.longitude.toFixed(4)}`),
+    () => setStatus("Could not access your location. You can search for a city instead.", true),
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
   );
 }
 
-// Init
-updateUnitButton();
-if (!safeGet("vc_api_key")) {
-  els.keyBox.open = true;
-  setStatus("Add your API key to get started.");
-} else {
-  useCurrentLocation();
+function updateUnitButton() {
+  elements.unitButton.textContent = state.unit === "metric" ? "°C" : "°F";
+  elements.unitButton.setAttribute("aria-label", state.unit === "metric" ? "Switch to Fahrenheit" : "Switch to Celsius");
 }
+
+function bindEvents() {
+  elements.searchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    loadWeather(elements.locationInput.value);
+  });
+
+  elements.refreshButton.addEventListener("click", () => {
+    if (state.location) loadWeather(state.location);
+    else setStatus("Search for a location first.", true);
+  });
+
+  elements.unitButton.addEventListener("click", () => {
+    state.unit = state.unit === "metric" ? "us" : "metric";
+    writeStorage(STORAGE_KEYS.unit, state.unit);
+    updateUnitButton();
+    if (state.location) loadWeather(state.location);
+  });
+
+  elements.apiForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const apiKey = elements.apiKeyInput.value.trim();
+    if (!apiKey) {
+      setStatus("Paste your Visual Crossing API key first.", true);
+      return;
+    }
+    writeStorage(STORAGE_KEYS.apiKey, apiKey);
+    elements.apiKeyInput.value = "";
+    elements.apiSettings.open = false;
+    setStatus("API key saved in this browser.");
+    const previousLocation = state.location || readStorage(STORAGE_KEYS.lastLocation);
+    if (previousLocation) loadWeather(previousLocation);
+  });
+
+  elements.useLocationButton.addEventListener("click", useCurrentLocation);
+}
+
+function initialise() {
+  bindEvents();
+  updateUnitButton();
+  const savedLocation = readStorage(STORAGE_KEYS.lastLocation);
+
+  if (!getApiKey()) {
+    elements.apiSettings.open = true;
+    setStatus("Add your Visual Crossing API key, then search for a location.");
+    return;
+  }
+
+  if (navigator.geolocation) {
+    useCurrentLocation();
+  } else if (savedLocation) {
+    loadWeather(savedLocation);
+  } else {
+    setStatus("Search for a city to get started.");
+  }
+}
+
+initialise();

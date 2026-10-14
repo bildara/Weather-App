@@ -1,46 +1,31 @@
-# Weather App
+# Atmos Weather
 
-A simple weather web app built with HTML, CSS and vanilla JavaScript. It uses the [Visual Crossing Weather API](https://www.visualcrossing.com/weather-api) to show the current weather for any location, plus the previous and next 24 hours.
+A small, responsive weather app built with plain HTML, CSS and JavaScript. Weather data comes from the [Visual Crossing Weather API](https://www.visualcrossing.com/weather-api).
 
-**Project page:** https://YOUR-USERNAME.github.io/weather-app/
-
-## Features
-
-- Search any location (city, address, ZIP code...)
-- Current temperature, wind speed, chance of rain and general conditions (Sunny, Rain, Cloudy...)
-- Hourly view of the previous 24 hours and the next 24 hours
-- Refresh button to update the outlook
-- Switch between °C and °F
-- Default view uses your current location (browser geolocation)
-- Fade-in animations when weather loads
-
-## Run the project
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/weather-app.git
-   cd weather-app
-   ```
-2. Get a free API key from [Visual Crossing](https://www.visualcrossing.com/weather-api).
-3. Start a local server (needed for geolocation to work):
-   ```bash
-   python3 -m http.server 8000
-   ```
-   then open http://localhost:8000
-4. Paste your API key in the **API key** box and press Save. The key is stored only in your browser's localStorage and is never committed to the repository.
+## Requirements covered
+- Search for a city, address or other location.
+- Current temperature, wind speed, precipitation probability and weather conditions.
+- Hourly forecast covering the previous 24 hours and the next 24 hours.
+- Manual refresh.
+- Optional default view based on browser geolocation.
+- Subtle loading and reveal animations.
 
 ## Project structure
 
+```text
+index.html       Page structure and accessible labels
+style.css        Layout, responsive styles, weather themes and animations
+script.js        API requests, state, rendering and event handlers
+CaviarDreams.ttf Small labels and metadata font
+CaviarDreams_Bold.ttf Bold label font
+README.md        Setup instructions
 ```
-index.html   # page structure
-style.css    # styles and animations
-script.js    # API calls and rendering
-```
 
-## Notes
+## Run locally
 
-Since this is a front-end only app, the API key lives in the browser. Do not hardcode your key in the source code.
+1. Download a key from [Visual Crossing](https://www.visualcrossing.com/weather-api).
+2. In this folder run `python3 -m http.server 8000`.
+3. Open `http://localhost:8000`.
+4. Open **API key settings**, save the key, then search for a location. You can also use **Use my location** after allowing browser location access.
 
-## Credits
-
-Weather data by [Visual Crossing](https://www.visualcrossing.com/).
+The API key is stored in this browser's `localStorage`; it is not hardcoded into the source files. Because this is a client-side demo, the key is visible to the browser. For a public production app, route API requests through a backend.
